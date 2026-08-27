@@ -1,19 +1,19 @@
 from pathlib import Path
 import json
+import time
 
 import requests
 from bs4 import BeautifulSoup
-import time
 
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 BASE_URL = "https://books.toscrape.com/catalogue/page-1.html"
 USER_AGENT = "PoliteScraper/1.0"
 TIMEOUT = 10
 
-CACHE_FILE = Path("cache/catalogue-page-1.html")
-OUTPUT_FILE = Path("cache/products.json")
-
-
+CACHE_FILE = BASE_DIR / "cache" / "catalogue-page-1.html"
+OUTPUT_FILE = BASE_DIR / "cache" / "products.json"
 def fetch_catalogue_page():
     # Stage 3: use cached HTML if it already exists
     if CACHE_FILE.exists():
