@@ -116,6 +116,20 @@ def parse_products(content):
 
     return products
 
+def scrape_pages(start_page, end_page):
+    all_products = []
+
+    for page_number in range(start_page, end_page + 1):
+        print(f"Scraping page {page_number}...")
+
+        content = fetch_catalogue_page(page_number)
+        products = parse_products(content)
+
+        all_products.extend(products)
+
+    print(f"total_products={len(all_products)}")
+
+    return all_products
 
 def save_products(products):
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -130,8 +144,7 @@ def save_products(products):
 
 def main():
     try:
-        content = fetch_catalogue_page()
-        products = parse_products(content)
+        products = scrape_pages(1, 2)
         save_products(products)
     except RuntimeError as exc:
         print(f"ERROR: {exc}")
