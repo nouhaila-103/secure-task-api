@@ -1,8 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from fastapi.responses import JSONResponse
 
 from repository import TaskRepository
 from service import TaskService
+from supabase_client import supabase
 
 
 app = FastAPI(
@@ -12,16 +14,29 @@ app = FastAPI(
 )
 
 
+class AuthRequest(BaseModel):
+    email: str
+    password: str
+
+
 repository = TaskRepository()
 service = TaskService(repository)
 
+
+# -------------------------
+# General API routes
+# -------------------------
 
 @app.get("/", summary="Get API information")
 def root():
     return {
         "name": "Task API",
         "version": "1.0",
-        "endpoints": ["/tasks"],
+        "endpoints": [
+            "/tasks",
+            "/auth/signup",
+            "/auth/login",
+        ],
     }
 
 
@@ -29,6 +44,86 @@ def root():
 def health():
     return {"status": "ok"}
 
+
+# -------------------------
+# Authentication
+# -------------------------
+
+@app.post(
+    "/auth/signup",
+    status_code=201,
+    summary="Create a new user",
+)
+def signup(data: AuthRequest):
+    if not data.email.strip() or not data.password.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Email and password are required",
+        )
+
+    try:
+        response = supabase.auth.sign_up({
+            "email": data.email,
+            "password": data.password,
+        })
+
+        return {
+            "user": (
+                response.user.model_dump()
+                if response.user
+                else None
+            )
+        }
+
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to create account",
+        )
+
+
+@app.post(
+    "/auth/login",
+    status_code=200,
+    summary="Log in",
+)
+def login(data: AuthRequest):
+    if not data.email.strip() or not data.password.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Email and password are required",
+        )
+
+    try:
+        response = supabase.auth.sign_in_with_password({
+            "email": data.email,
+            "password": data.password,
+        })
+
+        if not response.session:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid login credentials",
+            )
+
+        return {
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid login credentials",
+        )
+
+
+# -------------------------
+# Task routes
+# -------------------------
 
 @app.get(
     "/tasks",
@@ -74,7 +169,10 @@ def create_task(body: dict):
     return service.create_task(title)
 
 
-@app.put("/tasks/{task_id}", summary="Update a task")
+@app.put(
+    "/tasks/{task_id}",
+    summary="Update a task",
+)
 def update_task(task_id: int, body: dict):
     result = service.update_task(task_id, body)
 
