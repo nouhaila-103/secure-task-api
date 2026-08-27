@@ -1,31 +1,25 @@
 from pathlib import Path
+import json
+
 import requests
 from bs4 import BeautifulSoup
 
 
 BASE_URL = "https://books.toscrape.com/catalogue/page-1.html"
-
-CACHE_DIR = Path(__file__).resolve().parent.parent / "cache"
-CACHE_FILE = CACHE_DIR / "catalogue-page-1.html"
-
-USER_AGENT = "FlyRankInternshipA9/1.0 (+https://github.com/nouhaila-103/flyrank-assignment1)"
-
+USER_AGENT = "PoliteScraper/1.0"
 TIMEOUT = 10
+
+CACHE_FILE = Path("cache/catalogue-page-1.html")
+OUTPUT_FILE = Path("cache/products.json")
 
 
 def fetch_catalogue_page():
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Development should use the cached copy when available.
+    # Stage 3: use cached HTML if it already exists
     if CACHE_FILE.exists():
-        content = CACHE_FILE.read_bytes()
-
         print("CACHE HIT")
+        content = CACHE_FILE.read_bytes()
         print(f"response_size={len(content)} bytes")
-
         return content
-
-    print(f"FETCH {BASE_URL}")
 
     headers = {
         "User-Agent": USER_AGENT
@@ -47,6 +41,7 @@ def fetch_catalogue_page():
 
     content = response.content
 
+    CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
     CACHE_FILE.write_bytes(content)
 
     print(f"response_size={len(content)} bytes")
@@ -55,49 +50,79 @@ def fetch_catalogue_page():
     return content
 
 
-RATING_MAP = {
-    "One": 1,
-    "Two": 2,
-    "Three": 3,
-    "Four": 4,
-    "Five": 5,
-}
+def parse_products(content):
+    soup = BeautifulSoup(content, "html.parser")
 
-
-def parse_catalogue_page():
-    html = CACHE_FILE.read_text(
-        encoding="utf-8",
-        errors="ignore",
-    )
-
-    soup = BeautifulSoup(html, "html.parser")
+    product_elements = soup.select("article.product_pod")
 
     products = []
 
-    for card in soup.select("article.product_pod"):
-        title_link = card.select_one("h3 a")
-        price = card.select_one("p.price_color")
-        availability = card.select_one("p.availability")
-        rating = card.select_one("p.star-rating")
+    for product in product_elements:
+        title_element = product.select_one("h3 a")
+        price_element = product.select_one(".price_color")
+        availability_element = product.select_one(
+            ".availability"
+        )
+        rating_element = product.select_one(".star-rating")
+
+        title = title_element.get("title", "").strip()
+        price = price_element.get_text(strip=True)
+        availability = availability_element.get_text(
+            " ",
+            strip=True,
+        )
+
+        rating_classes = rating_element.get("class", [])
+        rating_map = {
+            "One": 1,
+            "Two": 2,
+            "Three": 3,
+            "Four": 4,
+            "Five": 5,
+        }
+
+        rating = 0
+
+        for class_name in rating_classes:
+            if class_name in rating_map:
+                rating = rating_map[class_name]
+                break
+
+        url = title_element.get("href", "")
 
         products.append(
             {
-                "title": title_link.get("title"),
-                "price": price.get_text(strip=True),
-                "availability": availability.get_text(strip=True),
-                "rating": RATING_MAP[rating.get("class")[1]],
-                "url": title_link.get("href"),
+                "title": title,
+                "price": price,
+                "availability": availability,
+                "rating": rating,
+                "url": url,
             }
         )
 
-    return products
-def main():
-    fetch_catalogue_page()
-
-    products = parse_catalogue_page()
-
     print(f"products={len(products)}")
-    print(products[0])
-    
+
+    return products
+
+
+def save_products(products):
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    OUTPUT_FILE.write_text(
+        json.dumps(products, indent=2),
+        encoding="utf-8",
+    )
+
+    print(f"saved={OUTPUT_FILE}")
+
+
+def main():
+    content = fetch_catalogue_page()
+
+    products = parse_products(content)
+
+    save_products(products)
+
+
 if __name__ == "__main__":
     main()
