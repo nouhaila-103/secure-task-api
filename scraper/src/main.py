@@ -14,6 +14,10 @@ TIMEOUT = 10
 
 CACHE_FILE = BASE_DIR / "cache" / "catalogue-page-1.html"
 OUTPUT_FILE = BASE_DIR / "cache" / "products.json"
+
+def get_page_url(page_number):
+    return f"https://books.toscrape.com/catalogue/page-{page_number}.html"
+
 def fetch_catalogue_page():
     # Stage 3: use cached HTML if it already exists
     if CACHE_FILE.exists():
@@ -119,12 +123,13 @@ def save_products(products):
 
 
 def main():
-    content = fetch_catalogue_page()
-
-    products = parse_products(content)
-
-    save_products(products)
-
+    try:
+        content = fetch_catalogue_page()
+        products = parse_products(content)
+        save_products(products)
+    except RuntimeError as exc:
+        print(f"ERROR: {exc}")
+        raise SystemExit(1)
 
 if __name__ == "__main__":
     main()
