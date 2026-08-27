@@ -18,11 +18,16 @@ OUTPUT_FILE = BASE_DIR / "cache" / "products.json"
 def get_page_url(page_number):
     return f"https://books.toscrape.com/catalogue/page-{page_number}.html"
 
-def fetch_catalogue_page():
-    # Stage 3: use cached HTML if it already exists
-    if CACHE_FILE.exists():
+def fetch_catalogue_page(page_number=1):
+    cache_file = (
+        BASE_DIR
+        / "cache"
+        / f"catalogue-page-{page_number}.html"
+    )
+
+    if cache_file.exists():
         print("CACHE HIT")
-        content = CACHE_FILE.read_bytes()
+        content = cache_file.read_bytes()
         print(f"response_size={len(content)} bytes")
         return content
 
@@ -31,9 +36,10 @@ def fetch_catalogue_page():
     }
 
     try:
-        time.sleep(1)  # Simulate delay
+        time.sleep(1)
+
         response = requests.get(
-            BASE_URL,
+            get_page_url(page_number),
             headers=headers,
             timeout=TIMEOUT,
         )
@@ -47,11 +53,11 @@ def fetch_catalogue_page():
 
     content = response.content
 
-    CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    CACHE_FILE.write_bytes(content)
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    cache_file.write_bytes(content)
 
     print(f"response_size={len(content)} bytes")
-    print(f"saved={CACHE_FILE}")
+    print(f"saved={cache_file}")
 
     return content
 
