@@ -1,128 +1,31 @@
 # Task API
 
-A simple CRUD API for managing a to-do list, built with Python and FastAPI.
+A simple CRUD API built with FastAPI and PostgreSQL.
 
-The API uses an **in-memory list** to store tasks. No database is used, so tasks are reset whenever the server restarts.
+This project started as an in-memory CRUD API in Assignment 1. In Assignment 2, the in-memory storage was replaced with a database repository. In Assignment 3, the application was containerized with Docker and PostgreSQL.
 
-## Features
+The service and API routes were kept unchanged while the repository implementation was switched to PostgreSQL.
 
-* Create tasks
-* Read all tasks
-* Read a single task
-* Update tasks
-* Delete tasks
-* Input validation
-* HTTP status codes
-* Interactive Swagger UI documentation
+## Technologies
 
-## Requirements
-
-* Python 3.10+
-* FastAPI
-
-## Installation
-
-
-
-Install the dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Start the server:
-
-```bash
-python -m fastapi dev main.py
-```
-
-The API will be available at:
-
-```text
-http://localhost:8000
-```
-
-Swagger UI is available at:
-
-```text
-http://localhost:8000/docs
-```
-
-## API Endpoints
-
-| Method | Endpoint      | Description                      |
-| ------ | ------------- | -------------------------------- |
-| GET    | `/`           | Get API information              |
-| GET    | `/health`     | Check whether the API is running |
-| GET    | `/tasks`      | Get all tasks                    |
-| GET    | `/tasks/{id}` | Get one task                     |
-| POST   | `/tasks`      | Create a new task                |
-| PUT    | `/tasks/{id}` | Update a task                    |
-| DELETE | `/tasks/{id}` | Delete a task                    |
-| GET    | `/docs`       | Interactive Swagger UI           |
-
-## Example Task
-
-```json
-{
-  "id": 1,
-  "title": "Learn FastAPI",
-  "done": false
-}
-```
-
-## Create a Task
-
-Request:
-
-```bash
-curl -i -X POST http://localhost:8000/tasks \
--H "Content-Type: application/json" \
--d '{"title":"Buy milk"}'
-```
-
-The API returns status `201 Created` when the task is successfully created.
-
-## Error Handling
-
-The API uses the following status codes:
-
-* `200 OK` — successful read or update
-* `201 Created` — task successfully created
-* `204 No Content` — task successfully deleted
-* `400 Bad Request` — invalid or empty input
-* `404 Not Found` — task does not exist
-
-## In-Memory Storage
-
-Tasks are stored only in memory. If the server is stopped and started again, newly created tasks disappear and the three example tasks are restored.
-
-This is intentional for this assignment. A database will be introduced in a later stage of the backend learning process.
-
-## Swagger UI
-
-The API includes automatically generated Swagger UI through FastAPI.
-
-Open:
-
-```text
-http://localhost:8000/docs
-```
-
-Use the **Try it out** buttons to test the complete CRUD cycle without using curl.
-
-<!-- Add your Swagger screenshot below before submitting -->
+- Python
+- FastAPI
+- PostgreSQL
+- Docker
+- Docker Compose
+- Psycopg
 
 ## Project Structure
 
 ```text
-task-api/
+.
 ├── main.py
+├── service.py
+├── repository.py
+├── init.sql
+├── Dockerfile
+├── docker-compose.yml
 ├── requirements.txt
-├── .gitignore
+├── .env
+├── .env.example
 └── README.md
-```
-
-## Author
-
-Nouhaila RABII
