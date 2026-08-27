@@ -7,7 +7,7 @@ services:
       POSTGRES_DB: tasks
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d tasks"]
       interval: 5s
@@ -18,8 +18,8 @@ services:
     build: .
     ports:
       - "8000:8000"
-    environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/tasks
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
