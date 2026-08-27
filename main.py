@@ -1,11 +1,11 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse
 
 from repository import TaskRepository
 from service import TaskService
 from supabase_client import supabase
-from auth import get_current_user
 
 
 app = FastAPI(
@@ -15,18 +15,55 @@ app = FastAPI(
 )
 
 
+# -------------------------
+# Authentication
+# -------------------------
+
+security = HTTPBearer()
+
+
 class AuthRequest(BaseModel):
     email: str
     password: str
 
 
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    token = credentials.credentials
+
+    try:
+        response = supabase.auth.get_user(token)
+
+        if not response.user:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid or expired token",
+            )
+
+        return response.user
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+        )
+
+
+# -------------------------
+# Database
+# -------------------------
+
 repository = TaskRepository()
 service = TaskService(repository)
 
 
-# --------------------------------------------------
+# -------------------------
 # General routes
-# --------------------------------------------------
+# -------------------------
 
 @app.get("/", summary="Get API information")
 def root():
@@ -50,13 +87,14 @@ def health():
     return {"status": "ok"}
 
 
-# --------------------------------------------------
+# -------------------------
 # Task routes
-# --------------------------------------------------
+# -------------------------
 
 @app.get(
     "/tasks",
     summary="List all tasks",
+    description="Returns all tasks stored in the PostgreSQL database.",
 )
 def get_tasks():
     return service.get_all_tasks()
@@ -65,6 +103,7 @@ def get_tasks():
 @app.get(
     "/tasks/{task_id}",
     summary="Get one task",
+    description="Returns a single task by its ID.",
 )
 def get_task(task_id: int):
     task = service.get_task(task_id)
@@ -82,6 +121,7 @@ def get_task(task_id: int):
     "/tasks",
     status_code=201,
     summary="Create a task",
+    description="Creates a new task in the PostgreSQL database.",
 )
 def create_task(body: dict):
     title = body.get("title")
@@ -95,10 +135,7 @@ def create_task(body: dict):
     return service.create_task(title)
 
 
-@app.put(
-    "/tasks/{task_id}",
-    summary="Update a task",
-)
+@app.put("/tasks/{task_id}", summary="Update a task")
 def update_task(task_id: int, body: dict):
     result = service.update_task(task_id, body)
 
@@ -134,9 +171,9 @@ def delete_task(task_id: int):
     return None
 
 
-# --------------------------------------------------
-# Authentication
-# --------------------------------------------------
+# -------------------------
+# Authentication routes
+# -------------------------
 
 @app.post(
     "/auth/signup",
@@ -211,9 +248,31 @@ def login(data: AuthRequest):
         )
 
 
-# --------------------------------------------------
+@app.post(
+    "/auth/logout",
+    status_code=204,
+    summary="Log out",
+)
+def logout(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+):
+    token = credentials.credentials
+
+    try:
+        supabase.auth.sign_out()
+
+        return None
+
+    except Exception:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+        )
+
+
+# -------------------------
 # Public route
-# --------------------------------------------------
+# -------------------------
 
 @app.get(
     "/public/info",
@@ -225,19 +284,17 @@ def public_info():
     }
 
 
-# --------------------------------------------------
+# -------------------------
 # Protected routes
-# --------------------------------------------------
+# -------------------------
 
 @app.get(
     "/protected/profile",
     summary="Get authenticated user profile",
 )
 def protected_profile(
-    auth=Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
-    user = auth["user"]
-
     return {
         "id": user.id,
         "email": user.email,
@@ -250,38 +307,10 @@ def protected_profile(
     summary="Get protected dashboard",
 )
 def protected_dashboard(
-    auth=Depends(get_current_user),
+    user=Depends(get_current_user),
 ):
-    user = auth["user"]
-
     return {
         "message": "Welcome to your protected dashboard!",
         "user_id": user.id,
         "email": user.email,
     }
-
-
-# --------------------------------------------------
-# Logout
-# --------------------------------------------------
-
-@app.post(
-    "/auth/logout",
-    status_code=204,
-    summary="Log out",
-)
-def logout(
-    auth=Depends(get_current_user),
-):
-    token = auth["token"]
-
-    try:
-        supabase.auth.sign_out()
-
-        return None
-
-    except Exception:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired token",
-        )
