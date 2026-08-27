@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse
 
 from repository import TaskRepository
 from service import TaskService
 from supabase_client import supabase
+from auth import get_current_user
 
 
 app = FastAPI(
@@ -36,8 +37,10 @@ def root():
             "/tasks",
             "/auth/signup",
             "/auth/login",
+            "/auth/logout",
             "/public/info",
             "/protected/profile",
+            "/protected/dashboard",
         ],
     }
 
@@ -54,7 +57,6 @@ def health():
 @app.get(
     "/tasks",
     summary="List all tasks",
-    description="Returns all tasks stored in the PostgreSQL database.",
 )
 def get_tasks():
     return service.get_all_tasks()
@@ -63,7 +65,6 @@ def get_tasks():
 @app.get(
     "/tasks/{task_id}",
     summary="Get one task",
-    description="Returns a single task by its ID.",
 )
 def get_task(task_id: int):
     task = service.get_task(task_id)
@@ -81,7 +82,6 @@ def get_task(task_id: int):
     "/tasks",
     status_code=201,
     summary="Create a task",
-    description="Creates a new task in the PostgreSQL database.",
 )
 def create_task(body: dict):
     title = body.get("title")
@@ -95,7 +95,10 @@ def create_task(body: dict):
     return service.create_task(title)
 
 
-@app.put("/tasks/{task_id}", summary="Update a task")
+@app.put(
+    "/tasks/{task_id}",
+    summary="Update a task",
+)
 def update_task(task_id: int, body: dict):
     result = service.update_task(task_id, body)
 
@@ -156,7 +159,9 @@ def signup(data: AuthRequest):
         )
 
         return {
-            "user": response.user.model_dump() if response.user else None
+            "user": response.user.model_dump()
+            if response.user
+            else None
         }
 
     except Exception:
@@ -207,7 +212,7 @@ def login(data: AuthRequest):
 
 
 # --------------------------------------------------
-# Stage 2: Public route
+# Public route
 # --------------------------------------------------
 
 @app.get(
@@ -221,7 +226,7 @@ def public_info():
 
 
 # --------------------------------------------------
-# Stage 3: Protected profile
+# Protected routes
 # --------------------------------------------------
 
 @app.get(
@@ -229,51 +234,51 @@ def public_info():
     summary="Get authenticated user profile",
 )
 def protected_profile(
-    authorization: str | None = Header(default=None)
+    auth=Depends(get_current_user),
 ):
-    # Check that Authorization header exists
-    if not authorization:
-        raise HTTPException(
-            status_code=401,
-            detail="Access token required",
-        )
+    user = auth["user"]
 
-    # Check Bearer format
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="Access token required",
-        )
+    return {
+        "id": user.id,
+        "email": user.email,
+        "created_at": user.created_at,
+    }
 
-    # Extract token
-    token = authorization[7:].strip()
 
-    if not token:
-        raise HTTPException(
-            status_code=401,
-            detail="Access token required",
-        )
+@app.get(
+    "/protected/dashboard",
+    summary="Get protected dashboard",
+)
+def protected_dashboard(
+    auth=Depends(get_current_user),
+):
+    user = auth["user"]
 
-    # Verify token with Supabase
+    return {
+        "message": "Welcome to your protected dashboard!",
+        "user_id": user.id,
+        "email": user.email,
+    }
+
+
+# --------------------------------------------------
+# Logout
+# --------------------------------------------------
+
+@app.post(
+    "/auth/logout",
+    status_code=204,
+    summary="Log out",
+)
+def logout(
+    auth=Depends(get_current_user),
+):
+    token = auth["token"]
+
     try:
-        response = supabase.auth.get_user(token)
+        supabase.auth.sign_out()
 
-        if not response.user:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid or expired token",
-            )
-
-        user = response.user
-
-        return {
-            "id": user.id,
-            "email": user.email,
-            "created_at": user.created_at,
-        }
-
-    except HTTPException:
-        raise
+        return None
 
     except Exception:
         raise HTTPException(
