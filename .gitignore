@@ -5,3 +5,7 @@ __pycache__/
 venv/
 .vscode/
 .idea/
+
+scraper/cache/*
+!scraper/cache/.gitkeep
+scraper/cache/
