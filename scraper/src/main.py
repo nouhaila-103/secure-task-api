@@ -3,6 +3,7 @@ import json
 
 import requests
 from bs4 import BeautifulSoup
+import time
 
 
 BASE_URL = "https://books.toscrape.com/catalogue/page-1.html"
@@ -26,6 +27,7 @@ def fetch_catalogue_page():
     }
 
     try:
+        time.sleep(1)  # Simulate delay
         response = requests.get(
             BASE_URL,
             headers=headers,
