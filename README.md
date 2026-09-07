@@ -59,10 +59,6 @@ SUPABASE_KEY=your_supabase_anon_key
 PORT=8000
 ```
 
-Never commit the `.env` file to GitHub.
-
-The `.env` file is included in `.gitignore`.
-
 ## Running the API
 
 Make sure Docker Desktop is running.
@@ -249,8 +245,6 @@ Supabase is responsible for authentication and issuing JWT access tokens.
 
 The backend verifies the access token before allowing access to protected routes.
 
-No Supabase credentials or secrets should be committed to the repository.
-
 ## Database
 
 PostgreSQL is used to store task data.
@@ -329,7 +323,3 @@ http://localhost:8000/docs
 ```
 
 Create a Supabase account, log in, copy the access token, click **Authorize**, and test the protected endpoints.
-
-## Author
-
-Backend AI Engineering — Auth Login & Protect Assignment
